@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "axios": "^0.21.1",
     "deck.gl": "^8.5.3",
     "next": "11.1.0",
     "react": "17.0.2",
