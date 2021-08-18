@@ -25,8 +25,9 @@ const DATA_BASE_PATH = path.join(process.cwd(), "..", "data");
 const DATA_TIMESERIES_PATH = path.join(DATA_BASE_PATH, "counties.timeseries.json");
 const DATA_TIMESERIES_PARTIAL_PATH = path.join(DATA_BASE_PATH, "counties.timeseries.json.part");
 const DATA_LAST_FETCHED_PATH = path.join(DATA_BASE_PATH, "lastFetched.txt");
+const DESTINATION_DATA_PATH = path.join(process.cwd(), "..", "web", "public", "data");
 const GEOJSON_BASE_PATH = path.join(process.cwd(), "static", "counties.geojson");
-const buildDataPath = (category: string) => path.join(DATA_BASE_PATH, category);
+const buildDataPath = (category: string) => path.join(DESTINATION_DATA_PATH, category);
 const buildDataFilePath = (category: string, metric: string) =>
   path.join(buildDataPath(category), `${metric}.json.gz`);
 

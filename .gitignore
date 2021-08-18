@@ -1,1 +1,3 @@
 data/**/*.json*
+web/public/data/**/*
+data/lastFetched.txt
