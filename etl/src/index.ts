@@ -14,7 +14,10 @@ import { chain } from "stream-chain";
 import { parser } from "stream-json";
 import { streamArray } from "stream-json/streamers/StreamArray";
 import type { Fips, RegionSummaryWithTimeseries } from "typings/CovidActNow";
+import { promisify } from "util";
+import { gzip as _gzip } from "zlib";
 dotenv.config();
+const gzip = promisify(_gzip);
 
 const progress = new CliProgress.SingleBar({}, CliProgress.Presets.shades_classic);
 
@@ -25,7 +28,7 @@ const DATA_LAST_FETCHED_PATH = path.join(DATA_BASE_PATH, "lastFetched.txt");
 const GEOJSON_BASE_PATH = path.join(process.cwd(), "static", "counties.geojson");
 const buildDataPath = (category: string) => path.join(DATA_BASE_PATH, category);
 const buildDataFilePath = (category: string, metric: string) =>
-  path.join(buildDataPath(category), `${metric}.json`);
+  path.join(buildDataPath(category), `${metric}.json.gz`);
 
 const COVIDACTNOW_BASE_URL = `https://api.covidactnow.org/v2/`;
 const countyTimeseriesUrl = (apiKey: string) =>
@@ -228,7 +231,9 @@ async function build() {
 
       const filePath = buildDataFilePath(category, metric);
       console.log(chalk`{green build:} writing file to ${filePath}...`);
-      await fsP.writeFile(buildDataFilePath(category, metric), JSON.stringify(newFeatures));
+      const payload = JSON.stringify(newFeatures);
+      const gzippedPayload = await gzip(payload);
+      await fsP.writeFile(buildDataFilePath(category, metric), gzippedPayload);
     }
   }
 }
