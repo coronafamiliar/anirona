@@ -1,1 +1,243 @@
-export const add = (a: number, b: number) => a + b
+import axios from "axios";
+import chalk from "chalk";
+import CliProgress from "cli-progress";
+import { Command } from "commander";
+import { startOfToday } from "date-fns";
+import dotenv from "dotenv";
+import { constants, default as fs, promises as fsP } from "fs";
+import type { FeatureCollection } from "geojson";
+import produce from "immer";
+import { keyBy, mapValues } from "lodash";
+import ora from "ora";
+import path from "path";
+import { chain } from "stream-chain";
+import { parser } from "stream-json";
+import { streamArray } from "stream-json/streamers/StreamArray";
+import type { Fips, RegionSummaryWithTimeseries } from "typings/CovidActNow";
+dotenv.config();
+
+const progress = new CliProgress.SingleBar({}, CliProgress.Presets.shades_classic);
+
+const DATA_BASE_PATH = path.join(process.cwd(), "..", "data");
+const DATA_TIMESERIES_PATH = path.join(DATA_BASE_PATH, "counties.timeseries.json");
+const DATA_TIMESERIES_PARTIAL_PATH = path.join(DATA_BASE_PATH, "counties.timeseries.json.part");
+const DATA_LAST_FETCHED_PATH = path.join(DATA_BASE_PATH, "lastFetched.txt");
+const GEOJSON_BASE_PATH = path.join(process.cwd(), "static", "counties.geojson");
+const buildDataPath = (category: string) => path.join(DATA_BASE_PATH, category);
+const buildDataFilePath = (category: string, metric: string) =>
+  path.join(buildDataPath(category), `${metric}.json`);
+
+const COVIDACTNOW_BASE_URL = `https://api.covidactnow.org/v2/`;
+const countyTimeseriesUrl = (apiKey: string) =>
+  `${COVIDACTNOW_BASE_URL}counties.timeseries.json?apiKey=${apiKey}`;
+
+async function downloadCovidActNowTimeseries(): Promise<void> {
+  console.log(chalk`{green prereq:} downloading timeseries data from CovidActNow...`);
+  const apiKey = process.env.COVIDACTNOW_API_KEY;
+  if (apiKey == null) {
+    throw new Error("No API key provided");
+  }
+
+  try {
+    await fsP.access(DATA_TIMESERIES_PARTIAL_PATH, constants.F_OK);
+    console.log(chalk`{green prereq:} {yellow [note]} deleting previously unfinished download`);
+    await fsP.unlink(DATA_TIMESERIES_PARTIAL_PATH);
+  } catch (err) {}
+
+  const apiResponse = await axios.get<NodeJS.ReadableStream>(countyTimeseriesUrl(apiKey), {
+    responseType: "stream",
+    onDownloadProgress: (event) => {
+      event;
+    },
+  });
+
+  progress.start(apiResponse.headers["content-length"], 0);
+
+  apiResponse.data.on("data", (chunk: Buffer) => progress.increment(chunk.length));
+  apiResponse.data.pipe(fs.createWriteStream(DATA_TIMESERIES_PARTIAL_PATH, { encoding: "utf-8" }));
+
+  apiResponse.data.on("close", async () => {
+    await fsP.writeFile(DATA_LAST_FETCHED_PATH, new Date().toISOString(), { encoding: "utf-8" });
+    await fsP.rename(DATA_TIMESERIES_PARTIAL_PATH, DATA_TIMESERIES_PATH);
+    progress.stop();
+  });
+}
+
+interface TimeseriesSliceRow {
+  date: Date;
+  value: number | null;
+}
+
+interface TimeseriesSlice {
+  fips: Fips;
+  rows: TimeseriesSliceRow[];
+}
+
+const METRICS_TIMESERIES_PATHS = [
+  "testPositivityRatio",
+  "caseDensity",
+  "contactTracerCapacityRatio",
+  "infectionRate",
+  "infectionRateCI90",
+  "icuHeadroomRatio",
+  "icuCapacityRatio",
+  "vaccinationsInitiatedRatio",
+  "vaccinationsCompletedRatio",
+] as const;
+type MetricsTimeseriesPaths = typeof METRICS_TIMESERIES_PATHS[number];
+
+const ACTUALS_TIMESERIES_PATHS = [
+  "cases",
+  "deaths",
+  "positiveTests",
+  "negativeTests",
+  "contactTracers",
+  "hospitalBeds",
+  "icuBeds",
+  "newCases",
+  "newDeaths",
+  "vaccinesDistributed",
+  "vaccinationsInitiated",
+  "vaccinationsCompleted",
+  "vaccinesAdministered",
+  "vaccinesAdministeredDemographics",
+  "vaccinationsInitiatedDemographics",
+] as const;
+type ActualsTimeseriesPaths = typeof ACTUALS_TIMESERIES_PATHS[number];
+
+const RISK_LEVELS_TIMESERIES_PATHS = ["overall", "caseDensity"] as const;
+type RiskLevelTimeseriesPaths = typeof RISK_LEVELS_TIMESERIES_PATHS[number];
+
+type TimeseriesCategory = "metrics" | "actuals" | "riskLevels";
+const TIMESERIES_PATHS: { [k in TimeseriesCategory]: readonly string[] } = {
+  metrics: METRICS_TIMESERIES_PATHS,
+  actuals: ACTUALS_TIMESERIES_PATHS,
+  riskLevels: RISK_LEVELS_TIMESERIES_PATHS,
+};
+
+async function mapTimeseriesPropertyToGeojson(
+  category: TimeseriesCategory,
+  path: string,
+  timeseries: RegionSummaryWithTimeseries[],
+  geojsonBase: FeatureCollection
+): Promise<FeatureCollection> {
+  if (TIMESERIES_PATHS[category].indexOf(path) < 0) {
+    throw new Error(`Path ${path} not in category ${category}`);
+  }
+
+  const timeseriesKeyedByFips = keyBy(timeseries, (region) => region.fips);
+
+  console.log(
+    chalk`{green map:} mapping timeseries for ${category}.${path} with {cyan ${geojsonBase.features.length}} counties`
+  );
+  //console.log("debug: keys", Object.keys(timeseriesKeyedByFips).slice(0, 50));
+  progress.start(geojsonBase.features.length, 0, { county: "N/A" });
+
+  const newGeoJSON = produce(geojsonBase, (draft) => {
+    for (const feature of draft.features) {
+      if (feature.properties == null) {
+        throw new Error("Expected geojson features to have properties");
+      }
+
+      const fips: string = feature.properties.STATE + feature.properties.COUNTY;
+      if (fips.length != 5) {
+        throw new Error(
+          "Expected 2-digit STATE property and 3-digit COUNTY property to assemble 5-digit FIPS"
+        );
+      }
+
+      const entry = timeseriesKeyedByFips[fips];
+      if (entry == null) {
+        continue;
+      }
+
+      const categoryTimeseries = entry[`${category}Timeseries`] as any;
+      feature.properties[`${category}.${path}`] = mapValues(
+        keyBy(categoryTimeseries, (elem) => elem.date),
+        (elem) => elem[path]
+      );
+      progress.increment(1, { county: feature.properties["NAME"] });
+    }
+  });
+  progress.stop();
+
+  return newGeoJSON;
+}
+
+async function getTimeseriesFile(): Promise<RegionSummaryWithTimeseries[]> {
+  try {
+    console.log(chalk`{green prereq:} checking timeseries file and last updated time`);
+    await fsP.access(DATA_TIMESERIES_PATH, constants.F_OK);
+    const lastFetched = new Date(await fsP.readFile(DATA_LAST_FETCHED_PATH, { encoding: "utf-8" }));
+    if (lastFetched < startOfToday()) {
+      console.log(
+        chalk`{green prereq:} {yellow [note]} last fetched was before today, redownloading`
+      );
+      await downloadCovidActNowTimeseries();
+    }
+  } catch (err) {
+    console.log(chalk`{green prereq:} {yellow [note]} couldn't find timeseries file, downloading`);
+    await downloadCovidActNowTimeseries();
+  }
+
+  console.log(chalk`{green prereq:} parsing timeseries file...`);
+  const spinner = ora("parsing...").start();
+  return new Promise<RegionSummaryWithTimeseries[]>((resolve, reject) => {
+    const assembler: RegionSummaryWithTimeseries[] = [];
+    const pipeline = chain([
+      fs.createReadStream(DATA_TIMESERIES_PATH, {
+        highWaterMark: 1 * 1024 * 1024, // buffer size
+      }),
+      parser(),
+      streamArray(),
+      (data) => data.value,
+    ]);
+    pipeline.on("data", (data) => {
+      assembler.push(data);
+      spinner.text = chalk`parsed {blue ${assembler.length}} so far`;
+    });
+    pipeline.on("end", () => {
+      spinner.stop();
+      resolve(assembler);
+    });
+    pipeline.on("error", (err) => reject(err));
+  });
+}
+
+async function getGeoJSONBase(): Promise<FeatureCollection> {
+  return JSON.parse(await fsP.readFile(GEOJSON_BASE_PATH, { encoding: "utf-8" }));
+}
+
+async function build() {
+  const geojsonBase = await getGeoJSONBase();
+  const timeseries = await getTimeseriesFile();
+  for (const category in TIMESERIES_PATHS) {
+    for (const metric of TIMESERIES_PATHS[category as TimeseriesCategory]) {
+      const newFeatures = await mapTimeseriesPropertyToGeojson(
+        category as TimeseriesCategory,
+        metric,
+        timeseries,
+        geojsonBase
+      );
+
+      try {
+        fsP.access(buildDataPath(category));
+      } catch (err) {
+        fsP.mkdir(buildDataPath(category));
+      }
+
+      const filePath = buildDataFilePath(category, metric);
+      console.log(chalk`{green build:} writing file to ${filePath}...`);
+      await fsP.writeFile(buildDataFilePath(category, metric), JSON.stringify(newFeatures));
+    }
+  }
+}
+
+const program = new Command();
+program.version("0.0.1");
+program
+  .command("build")
+  .description("download and assemble GeoJSON files for all CovidActNow metrics")
+  .action(build);
+
+program.parse();

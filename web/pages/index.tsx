@@ -1,7 +1,7 @@
 import axios from "axios";
 import type { InferGetServerSidePropsType, NextPage } from "next";
 import Head from "next/head";
-import type { RegionSummaryWithTimeseries } from "typings/CovidActNow";
+import type { RegionSummaryWithTimeseries } from "typings/codegen/CovidActNow";
 import styles from "../styles/Home.module.css";
 
 export const getServerSideProps = async () => {

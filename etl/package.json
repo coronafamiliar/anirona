@@ -13,9 +13,27 @@
     "@swc/core": "^1.2.74",
     "@swc/jest": "^0.1.4",
     "@swc/register": "^0.1.7",
+    "@types/cli-progress": "^3.9.2",
+    "@types/geojson": "^7946.0.8",
     "@types/jest": "^26.0.24",
+    "@types/lodash": "^4.14.172",
+    "@types/stream-chain": "^2.0.1",
+    "@types/stream-json": "^1.7.1",
     "jest": "^27.0.6",
     "nodemon": "^2.0.12",
     "prettier": "^2.3.2"
+  },
+  "dependencies": {
+    "axios": "^0.21.1",
+    "chalk": "^4.1.2",
+    "cli-progress": "^3.9.0",
+    "commander": "^8.1.0",
+    "date-fns": "^2.23.0",
+    "dotenv": "^10.0.0",
+    "immer": "^9.0.5",
+    "lodash": "^4.17.21",
+    "ora": "^5.4.1",
+    "stream-chain": "^2.2.4",
+    "stream-json": "^1.7.2"
   }
 }
