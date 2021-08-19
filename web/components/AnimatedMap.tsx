@@ -40,9 +40,23 @@ const DOMAINS: { [metric: string]: { min: number; max: number } } = {
 };
 
 const DESCRIPTIONS: { [metric: string]: string } = {
-  "actuals.cases": "Total cases, cum.",
-  "actuals.newCases": "New cases each day",
+  "actuals.newCases": "New cases",
+  "actuals.newDeaths": "New deaths",
   "metrics.caseDensity": "Cases per 100k, 7 day average",
+  "metrics.contactTracerCapacityRatio":
+    "Hired tracers to tracers needed, 7 day average",
+  "metrics.icuCapacityRatio": "% of ICU beds in use, 7 day average",
+  "metrics.icuHeadroomRatio": "% of ICU beds available, 7 day average",
+  "metrics.infectionRate": "Estimated Rt (effective transmission rate)",
+  "metrics.infectionRateCI90":
+    "Estimated Rt (90th percentile confidence interval)",
+  "metrics.testPositivityRatio": "% of positive tests, 7 day average",
+  "metrics.vaccinationsCompletedRatio":
+    "% of population fully vaccinated (completed all doses to date)",
+  "metrics.vaccinationsInitiatedRatio":
+    "% of population partially vaccinated (one dose, but not complete)",
+  "riskLevels.caseDensity": "Case density risk level",
+  "riskLevels.overall": "Overall risk level",
 };
 
 const START_OF_ANIMATION = new Date("2020-01-01");
@@ -70,7 +84,7 @@ const AnimatedMap: React.FC<AnimatedMapProps> = ({ metric }) => {
     return null;
   }
 
-  const domain = DOMAINS[wholeMetric];
+  const domain = DOMAINS[wholeMetric] || { max: 1, min: 0 };
 
   const [category, dataMetric] = splitMetric;
   const dayCount = timestep / speedModifier;
