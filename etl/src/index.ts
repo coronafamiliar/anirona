@@ -7,7 +7,7 @@ import dotenv from "dotenv";
 import { constants, default as fs, promises as fsP } from "fs";
 import type { FeatureCollection } from "geojson";
 import produce from "immer";
-import { keyBy, mapValues } from "lodash";
+import { keyBy, mapValues, max, min } from "lodash";
 import ora from "ora";
 import path from "path";
 import { chain } from "stream-chain";
@@ -30,6 +30,8 @@ const GEOJSON_BASE_PATH = path.join(process.cwd(), "static", "counties.geojson")
 const buildDataPath = (category: string) => path.join(DESTINATION_DATA_PATH, category);
 const buildDataFilePath = (category: string, metric: string) =>
   path.join(buildDataPath(category), `${metric}.json.gz`);
+const buildDataFilePartialPath = (category: string, metric: string) =>
+  `${buildDataFilePath(category, metric)}.part`;
 
 const COVIDACTNOW_BASE_URL = `https://api.covidactnow.org/v2/`;
 const countyTimeseriesUrl = (apiKey: string) =>
@@ -60,10 +62,19 @@ async function downloadCovidActNowTimeseries(): Promise<void> {
   apiResponse.data.on("data", (chunk: Buffer) => progress.increment(chunk.length));
   apiResponse.data.pipe(fs.createWriteStream(DATA_TIMESERIES_PARTIAL_PATH, { encoding: "utf-8" }));
 
-  apiResponse.data.on("close", async () => {
-    await fsP.writeFile(DATA_LAST_FETCHED_PATH, new Date().toISOString(), { encoding: "utf-8" });
-    await fsP.rename(DATA_TIMESERIES_PARTIAL_PATH, DATA_TIMESERIES_PATH);
-    progress.stop();
+  return new Promise((resolve, reject) => {
+    apiResponse.data.on("error", (err) => {
+      if (err) {
+        reject(err);
+      }
+    });
+
+    apiResponse.data.on("close", async () => {
+      await fsP.writeFile(DATA_LAST_FETCHED_PATH, new Date().toISOString(), { encoding: "utf-8" });
+      await fsP.rename(DATA_TIMESERIES_PARTIAL_PATH, DATA_TIMESERIES_PATH);
+      progress.stop();
+      resolve();
+    });
   });
 }
 
@@ -156,10 +167,17 @@ async function mapTimeseriesPropertyToGeojson(
       }
 
       const categoryTimeseries = entry[`${category}Timeseries`] as any;
-      feature.properties[`${category}.${path}`] = mapValues(
+      const timeseriesForPath = mapValues(
         keyBy(categoryTimeseries, (elem) => elem.date),
         (elem) => elem[path]
       );
+
+      feature.properties[`${category}.${path}`] = {
+        ...timeseriesForPath,
+        max: max(Object.values(timeseriesForPath)),
+        min: min(Object.values(timeseriesForPath)),
+      };
+
       progress.increment(1, { county: feature.properties["NAME"] });
     }
   });
@@ -170,17 +188,29 @@ async function mapTimeseriesPropertyToGeojson(
 
 async function getTimeseriesFile(): Promise<RegionSummaryWithTimeseries[]> {
   try {
-    console.log(chalk`{green prereq:} checking timeseries file and last updated time`);
-    await fsP.access(DATA_TIMESERIES_PATH, constants.F_OK);
-    const lastFetched = new Date(await fsP.readFile(DATA_LAST_FETCHED_PATH, { encoding: "utf-8" }));
-    if (lastFetched < startOfToday()) {
-      console.log(
-        chalk`{green prereq:} {yellow [note]} last fetched was before today, redownloading`
-      );
-      await downloadCovidActNowTimeseries();
-    }
+    console.log(chalk`{green prereq:} checking timeseries file`);
+    await fsP.access(DATA_TIMESERIES_PATH);
   } catch (err) {
     console.log(chalk`{green prereq:} {yellow [note]} couldn't find timeseries file, downloading`);
+    await downloadCovidActNowTimeseries();
+  }
+
+  try {
+    console.log(chalk`{green prereq:} checking last updated time`);
+    await fsP.access(DATA_LAST_FETCHED_PATH);
+  } catch (err) {
+    console.log(
+      chalk`{green prereq:} {yellow [note]} couldn't find last updated file, redownloading`
+    );
+    await downloadCovidActNowTimeseries();
+  }
+
+  console.log(chalk`{green prereq:} checking last updated time file`);
+  const lastFetched = new Date(await fsP.readFile(DATA_LAST_FETCHED_PATH, { encoding: "utf-8" }));
+  if (lastFetched < startOfToday()) {
+    console.log(
+      chalk`{green prereq:} {yellow [note]} last fetched was before today, redownloading`
+    );
     await downloadCovidActNowTimeseries();
   }
 
@@ -225,16 +255,37 @@ async function build() {
       );
 
       try {
-        fsP.access(buildDataPath(category));
+        await fsP.access(buildDataPath(category));
       } catch (err) {
-        fsP.mkdir(buildDataPath(category));
+        await fsP.mkdir(buildDataPath(category));
       }
 
       const filePath = buildDataFilePath(category, metric);
+      const partialFilePath = buildDataFilePartialPath(category, metric);
+
+      try {
+        await fsP.access(filePath);
+        console.log(chalk`{green prereq:} {yellow [cleanup]} cleaning up previous files`);
+        await fsP.unlink(filePath);
+      } catch (err) {
+        // do nothing
+      }
+
+      try {
+        await fsP.access(partialFilePath);
+        console.log(
+          chalk`{green prereq:} {yellow [cleanup]} cleaning up previously incomplete files`
+        );
+        await fsP.unlink(partialFilePath);
+      } catch (err) {
+        // do nothing
+      }
+
       console.log(chalk`{green build:} writing file to ${filePath}...`);
       const payload = JSON.stringify(newFeatures);
       const gzippedPayload = await gzip(payload);
-      await fsP.writeFile(buildDataFilePath(category, metric), gzippedPayload);
+      await fsP.writeFile(partialFilePath, gzippedPayload);
+      await fsP.rename(partialFilePath, filePath);
     }
   }
 }
