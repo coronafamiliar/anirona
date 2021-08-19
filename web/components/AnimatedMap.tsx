@@ -70,6 +70,22 @@ const speedModifier = 5;
 
 const COLOR_SCALE = chroma.scale("RdYlBu");
 
+/** In case there isn't data available for the current date, we'll fade out the data */
+interface PriorData {
+  mostRecentDayCount: number;
+  data: {
+    [fips: string]: {
+      dayCount: number;
+      date: string;
+      value: number;
+    };
+  };
+}
+
+// explicitly not useState because we don't want to rerender upon change
+// used to smooth out data gaps in the map
+let priorData: PriorData | null = null;
+
 const AnimatedMap: React.FC<AnimatedMapProps> = ({ metric }) => {
   const [playing, setPlaying] = useState(false);
   const [animationCounter, setAnimationCounter] = useRafState(0);
@@ -77,12 +93,6 @@ const AnimatedMap: React.FC<AnimatedMapProps> = ({ metric }) => {
 
   const wholeMetric = metric[0];
   const splitMetric = wholeMetric.split(".");
-
-  if (metric.length > 1 || splitMetric.length != 2) {
-    // Invalid, return to the homepage
-    router.replace("/");
-    return null;
-  }
 
   const domain = DOMAINS[wholeMetric] || { max: 1, min: 0 };
 
@@ -100,6 +110,11 @@ const AnimatedMap: React.FC<AnimatedMapProps> = ({ metric }) => {
     setAnimationCounter(animationCounter + 1);
   }
 
+  if (priorData != null && priorData.mostRecentDayCount > dayCount) {
+    priorData = null;
+  }
+
+  // uwc-debug
   const getFillColor = (_f: any): RGBAColor => {
     const f = _f as Feature;
     if (f.properties == null) {
@@ -114,15 +129,47 @@ const AnimatedMap: React.FC<AnimatedMapProps> = ({ metric }) => {
     const max = domain.max;
     const min = domain.min;
     const valueAtTimestep = series[currentAnimationDate];
+    const fips = f.properties.STATE + f.properties.COUNTY;
 
     if (valueAtTimestep == null) {
-      return [33, 33, 33, 0.2];
+      // No data available at the current animation date
+      const priorDataForFips = priorData?.data[fips];
+
+      if (fips != null && priorDataForFips != null) {
+        // Data exists at prior dates, tastefully fade it out
+
+        const priorValue: number = series[priorDataForFips.date];
+        const scaledValue = 1 - (priorValue - min) / max;
+        const fadingColor = 0.01 * (dayCount - priorDataForFips.dayCount);
+        return COLOR_SCALE(Math.min(1, scaledValue + fadingColor)).rgb();
+      } else {
+        return [33, 33, 33, 0.2];
+      }
+    } else {
+      // Data is available at the current date, store this in data
+
+      const scaledValue = 1 - (valueAtTimestep - min) / max;
+
+      priorData = priorData || {
+        mostRecentDayCount: dayCount,
+        data: {},
+      };
+      priorData.mostRecentDayCount = dayCount;
+      priorData.data[fips] = {
+        date: currentAnimationDate,
+        dayCount: dayCount,
+        value: valueAtTimestep,
+      };
+
+      return COLOR_SCALE(scaledValue).rgb();
     }
-
-    const scaledValue = 1 - (valueAtTimestep - min) / max;
-
-    return COLOR_SCALE(scaledValue).rgb();
   };
+
+  if (metric.length > 1 || splitMetric.length != 2) {
+    // Invalid, return to the homepage
+    router.replace("/");
+    return null;
+  }
 
   const layers = [
     new GeoJsonLayer({
@@ -135,7 +182,7 @@ const AnimatedMap: React.FC<AnimatedMapProps> = ({ metric }) => {
       getLineColor: [0, 0, 0, 0.1],
       getFillColor,
       updateTriggers: {
-        getFillColor: [currentAnimationDate],
+        getFillColor: currentAnimationDate,
       },
     }),
   ];
@@ -219,7 +266,7 @@ const AnimatedMap: React.FC<AnimatedMapProps> = ({ metric }) => {
           }}
         >
           {dataDayCount >= 0 && dataDayCount <= 365 ? (
-            <span>Day {Math.round(dataDayCount)}</span>
+            <span>Day {Math.floor(dataDayCount)}</span>
           ) : dataDayCount > 365 ? (
             <span>
               Year {Math.floor(dataDayCount / 365)} Day{" "}
