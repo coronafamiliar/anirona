@@ -39,13 +39,27 @@ const DOMAINS: { [metric: string]: { min: number; max: number } } = {
   },
 };
 
-const START_OF_PANDEMIC = new Date("2020-03-01");
-const DAYS_SINCE_START = differenceInDays(START_OF_PANDEMIC, startOfToday());
+const DESCRIPTIONS: { [metric: string]: string } = {
+  "actuals.cases": "Total cases, cum.",
+  "actuals.newCases": "New cases each day",
+  "metrics.caseDensity": "Cases per 100k, 7 day average",
+};
+
+const START_OF_ANIMATION = new Date("2020-01-01");
+const START_OF_DATA = new Date("2020-01-20");
+const DATA_ANIMATION_DATE_OFFSET = differenceInDays(
+  START_OF_DATA,
+  START_OF_ANIMATION
+);
+const DAYS_SINCE_START = differenceInDays(START_OF_ANIMATION, startOfToday());
+const speedModifier = 5;
+
+const COLOR_SCALE = chroma.scale("RdYlBu");
 
 const AnimatedMap: React.FC<AnimatedMapProps> = ({ metric }) => {
   const [playing, setPlaying] = useState(false);
   const [animationCounter, setAnimationCounter] = useRafState(0);
-  const timestep = animationCounter % DAYS_SINCE_START;
+  const timestep = animationCounter % (DAYS_SINCE_START * speedModifier);
 
   const wholeMetric = metric[0];
   const splitMetric = wholeMetric.split(".");
@@ -59,8 +73,10 @@ const AnimatedMap: React.FC<AnimatedMapProps> = ({ metric }) => {
   const domain = DOMAINS[wholeMetric];
 
   const [category, dataMetric] = splitMetric;
+  const dayCount = timestep / speedModifier;
+  const dataDayCount = dayCount - DATA_ANIMATION_DATE_OFFSET;
   const currentAnimationDate = formatISO(
-    add(START_OF_PANDEMIC, { days: timestep }),
+    add(START_OF_ANIMATION, { days: dayCount }),
     {
       representation: "date",
     }
@@ -86,12 +102,12 @@ const AnimatedMap: React.FC<AnimatedMapProps> = ({ metric }) => {
     const valueAtTimestep = series[currentAnimationDate];
 
     if (valueAtTimestep == null) {
-      return [33, 33, 33];
+      return [33, 33, 33, 0.2];
     }
 
     const scaledValue = 1 - (valueAtTimestep - min) / max;
 
-    return chroma.scale("RdYlBu")(scaledValue).rgb();
+    return COLOR_SCALE(scaledValue).rgb();
   };
 
   const layers = [
@@ -102,6 +118,7 @@ const AnimatedMap: React.FC<AnimatedMapProps> = ({ metric }) => {
       parameters: {
         depthTest: false,
       },
+      getLineColor: [0, 0, 0, 0.1],
       getFillColor,
       updateTriggers: {
         getFillColor: [currentAnimationDate],
@@ -130,7 +147,31 @@ const AnimatedMap: React.FC<AnimatedMapProps> = ({ metric }) => {
           position: "absolute",
           top: 0,
           left: 0,
-          height: "100vh",
+          width: "100vw",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "flex-start",
+          zIndex: 1,
+        }}
+      >
+        <div
+          style={{
+            fontSize: 24,
+            textShadow: "0 1px 2px rgba(0, 0, 0, 0.6)",
+            letterSpacing: 3,
+            color: "white",
+            marginTop: "2em",
+          }}
+        >
+          {DESCRIPTIONS[wholeMetric] || ""}
+        </div>
+      </div>
+      <div
+        style={{
+          position: "absolute",
+          bottom: 0,
+          left: 0,
           width: "100vw",
           display: "flex",
           flexDirection: "column",
@@ -142,14 +183,39 @@ const AnimatedMap: React.FC<AnimatedMapProps> = ({ metric }) => {
         <div
           style={{
             fontSize: 48,
-            fontFamily: "Iosevka",
+            fontWeight: 300,
+            textShadow: "0 1px 4px rgba(0, 0, 0, 0.6)",
+            letterSpacing: 5,
             color: "white",
-            margin: "1em",
+            marginBottom: "10px",
             cursor: "pointer",
           }}
           onClick={() => setPlaying(!playing)}
         >
           {currentAnimationDate}
+        </div>
+
+        <div
+          style={{
+            fontSize: 24,
+            textShadow: "0 1px 2px rgba(0, 0, 0, 0.6)",
+            letterSpacing: 3,
+            color: "white",
+            marginBottom: "2em",
+          }}
+        >
+          {dataDayCount >= 0 && dataDayCount <= 365 ? (
+            <span>Day {Math.round(dataDayCount)}</span>
+          ) : dataDayCount > 365 ? (
+            <span>
+              Year {Math.floor(dataDayCount / 365)} Day{" "}
+              {Math.round(dataDayCount % 365)}
+            </span>
+          ) : (
+            <span>
+              The <em>Before-Times</em>
+            </span>
+          )}
         </div>
       </div>
     </div>
