@@ -140,8 +140,7 @@ const AnimatedMap: React.FC<AnimatedMapProps> = ({ metric }) => {
 
         const priorValue: number = series[priorDataForFips.date];
         const scaledValue = 1 - (priorValue - min) / max;
-        const fadingColor = 0.01 * (dayCount - priorDataForFips.dayCount);
-        return COLOR_SCALE(Math.min(1, scaledValue + fadingColor)).rgb();
+        return COLOR_SCALE(Math.min(1, scaledValue)).rgb();
       } else {
         return [33, 33, 33, 0.2];
       }
