@@ -1,10 +1,13 @@
 import DeckGL from "@deck.gl/react";
+import { Menu, MenuButton, MenuItem, MenuList } from "@reach/menu-button";
+import "@reach/menu-button/styles.css";
 import chroma from "chroma-js";
 import { add, differenceInDays, formatISO, startOfToday } from "date-fns";
 import { GeoJsonLayer, RGBAColor } from "deck.gl";
 import type { Feature } from "geojson";
 import router from "next/router";
 import React, { useState } from "react";
+import { IoChevronDown, IoChevronUp } from "react-icons/io5";
 import { StaticMap } from "react-map-gl";
 import { useRafState } from "react-use";
 
@@ -164,7 +167,11 @@ const AnimatedMap: React.FC<AnimatedMapProps> = ({ metric }) => {
     }
   };
 
-  if (metric.length > 1 || splitMetric.length != 2) {
+  if (
+    metric.length > 1 ||
+    splitMetric.length != 2 ||
+    !DESCRIPTIONS[wholeMetric]
+  ) {
     // Invalid, return to the homepage
     router.replace("/");
     return null;
@@ -215,17 +222,44 @@ const AnimatedMap: React.FC<AnimatedMapProps> = ({ metric }) => {
           zIndex: 1,
         }}
       >
-        <div
-          style={{
-            fontSize: 24,
-            textShadow: "0 1px 2px rgba(0, 0, 0, 0.6)",
-            letterSpacing: 3,
-            color: "white",
-            marginTop: "2em",
-          }}
-        >
-          {DESCRIPTIONS[wholeMetric] || ""}
-        </div>
+        <Menu>
+          {({ isExpanded }) => (
+            <React.Fragment>
+              <MenuButton
+                style={{
+                  fontSize: 24,
+                  fontFamily: "Iosevka Web",
+                  backgroundColor: "transparent",
+                  border: "none",
+                  textShadow: "0 1px 2px rgba(0, 0, 0, 0.6)",
+                  letterSpacing: 3,
+                  color: "white",
+                  marginTop: "2em",
+                  cursor: "pointer",
+                }}
+              >
+                {DESCRIPTIONS[wholeMetric]}
+                <span aria-hidden="true" style={{ marginLeft: "1em" }}>
+                  {isExpanded ? <IoChevronUp /> : <IoChevronDown />}
+                </span>
+              </MenuButton>
+              <MenuList
+                style={{
+                  backgroundColor: "transparent",
+                  color: "white",
+                  borderTop: "2px solid #0077d5",
+                  marginTop: "1em",
+                }}
+              >
+                {Object.keys(DESCRIPTIONS).map((key) => (
+                  <MenuItem onSelect={() => router.push(`/${key}`)} key={key}>
+                    {DESCRIPTIONS[key]}
+                  </MenuItem>
+                ))}
+              </MenuList>
+            </React.Fragment>
+          )}
+        </Menu>
       </div>
       <div
         style={{
