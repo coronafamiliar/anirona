@@ -12,6 +12,7 @@ import { IoChevronDown, IoChevronUp } from "react-icons/io5";
 import { StaticMap } from "react-map-gl";
 import { useRafState } from "react-use";
 import styles from "styles/AnimatedMap.module.css";
+import { LegendColorBar } from "./LegendColorBarProps";
 
 interface AnimatedMapProps {
   metric: string[];
@@ -25,7 +26,7 @@ const INITIAL_VIEW_STATE = {
   maxZoom: 8,
 };
 
-const DOMAINS: { [metric: string]: { min: number; max: number } } = {
+export const DOMAINS: { [metric: string]: { min: number; max: number } } = {
   "actuals.cases": {
     min: 0,
     max: 1000,
@@ -83,7 +84,7 @@ const DATA_ANIMATION_DATE_OFFSET = differenceInDays(
   START_OF_ANIMATION
 );
 const DAYS_SINCE_START = differenceInDays(START_OF_ANIMATION, startOfToday());
-const speedModifier = 5;
+const speedModifier = 6;
 
 const COLOR_SCALE = chroma.scale("RdYlBu");
 
@@ -106,6 +107,10 @@ let priorData: PriorData | null = null;
 const AnimatedMap: React.FC<AnimatedMapProps> = ({ metric }) => {
   const [playing, setPlaying] = useState(false);
   const [animationCounter, setAnimationCounter] = useRafState(0);
+
+  // TODO this won't transition well as a speed transport control since
+  // changing the speed modifier will alter the current date as a function of
+  // the timestep. Need to rethink how to increment date from timestep
   const timestep = animationCounter % (DAYS_SINCE_START * speedModifier);
 
   const wholeMetric = metric[0];
@@ -344,65 +349,6 @@ const AnimatedMap: React.FC<AnimatedMapProps> = ({ metric }) => {
           )}
         </div>
         <LegendColorBar metric={wholeMetric} colorScale={COLOR_SCALE} />
-      </div>
-    </div>
-  );
-};
-
-interface LegendColorBarProps {
-  metric: string;
-  colorScale: chroma.Scale;
-}
-
-const LegendColorBar: React.FC<LegendColorBarProps> = ({
-  metric,
-  colorScale,
-}) => {
-  const domain = DOMAINS[metric] || { min: 0, max: 1 };
-
-  // If domain.max = 1, then we're dealing with a ratio, otherwise there may be
-  // smaller steps (e.g. risk levels 0-5)
-  const numSteps = domain.max > 4 ? Math.min(10, domain.max) : 10;
-
-  const colorSteps = [...Array(numSteps).keys()].map((i) => {
-    return colorScale(1 - i / numSteps).css();
-  });
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column" }}>
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "row",
-          justifyContent: "space-between",
-          color: "white",
-          fontSize: 11,
-          marginBottom: "1ex",
-        }}
-      >
-        <span>{domain.min}</span>
-        <span>{(domain.min + domain.max) / 2}</span>
-        <span>{domain.max}</span>
-      </div>
-      <div
-        style={{
-          height: "1ex",
-          width: "30vw",
-          minWidth: 200,
-          maxWidth: 500,
-          display: "flex",
-        }}
-      >
-        {colorSteps.map((rgba, i) => (
-          <div
-            key={`color-bar-${i}`}
-            style={{
-              width: `${100 / numSteps}%`,
-              backgroundColor: rgba,
-              height: "100%",
-            }}
-          ></div>
-        ))}
       </div>
     </div>
   );
