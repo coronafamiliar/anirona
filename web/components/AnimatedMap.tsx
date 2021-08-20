@@ -36,7 +36,19 @@ const DOMAINS: { [metric: string]: { min: number; max: number } } = {
     min: 0,
     max: 100,
   },
+  "metrics.infectionRate": {
+    min: 0,
+    max: 2,
+  },
+  "metrics.infectionRateCI90": {
+    min: 0,
+    max: 2,
+  },
   "riskLevels.overall": {
+    min: 0,
+    max: 5,
+  },
+  "riskLevels.caseDensity": {
     min: 0,
     max: 5,
   },
