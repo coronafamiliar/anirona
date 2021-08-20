@@ -257,10 +257,14 @@ const AnimatedMap: React.FC<AnimatedMapProps> = ({ metric }) => {
               </MenuButton>
               <MenuList
                 style={{
-                  backgroundColor: "transparent",
+                  backgroundColor: "rgba(0, 0, 0, 0.4)",
                   color: "white",
+                  border: "none",
                   borderTop: "2px solid #0077d5",
                   marginTop: "1em",
+                  textShadow: "0 1px 10px rgba(0, 0, 0, 0.4)",
+                  boxShadow: "0 1px 5px rgba(0, 0, 0, 0.2)",
+                  backdropFilter: "blur(50px)",
                 }}
               >
                 {Object.keys(DESCRIPTIONS).map((key) => (
