@@ -18,6 +18,7 @@ this is a Next.js app that displays an animated map of covid timeseries data. it
 
 - play and pause of time elapsing
 - legend bar with colors
+- a dropdown to pick the metrics you want to see
 
 ## how do i use it
 
