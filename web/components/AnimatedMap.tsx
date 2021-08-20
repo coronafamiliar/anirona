@@ -7,9 +7,11 @@ import { GeoJsonLayer, RGBAColor } from "deck.gl";
 import type { Feature } from "geojson";
 import router from "next/router";
 import React, { useState } from "react";
+import { IoIosPause, IoIosPlay } from "react-icons/io";
 import { IoChevronDown, IoChevronUp } from "react-icons/io5";
 import { StaticMap } from "react-map-gl";
 import { useRafState } from "react-use";
+import styles from "styles/AnimatedMap.module.css";
 
 interface AnimatedMapProps {
   metric: string[];
@@ -291,6 +293,20 @@ const AnimatedMap: React.FC<AnimatedMapProps> = ({ metric }) => {
         }}
       >
         <div
+          className={styles.transportControl}
+          style={{
+            fontSize: 48,
+            color: "white",
+            marginBottom: "10px",
+            cursor: "pointer",
+            transition: "opacity 1s",
+            opacity: playing ? 0.1 : 1,
+          }}
+          onClick={() => setPlaying(!playing)}
+        >
+          {playing ? <IoIosPause /> : <IoIosPlay />}
+        </div>
+        <div
           style={{
             fontSize: 48,
             fontWeight: 300,
@@ -327,6 +343,65 @@ const AnimatedMap: React.FC<AnimatedMapProps> = ({ metric }) => {
             </span>
           )}
         </div>
+        <LegendColorBar metric={wholeMetric} colorScale={COLOR_SCALE} />
+      </div>
+    </div>
+  );
+};
+
+interface LegendColorBarProps {
+  metric: string;
+  colorScale: chroma.Scale;
+}
+
+const LegendColorBar: React.FC<LegendColorBarProps> = ({
+  metric,
+  colorScale,
+}) => {
+  const domain = DOMAINS[metric] || { min: 0, max: 1 };
+
+  // If domain.max = 1, then we're dealing with a ratio, otherwise there may be
+  // smaller steps (e.g. risk levels 0-5)
+  const numSteps = domain.max > 4 ? Math.min(10, domain.max) : 10;
+
+  const colorSteps = [...Array(numSteps).keys()].map((i) => {
+    return colorScale(1 - i / numSteps).css();
+  });
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column" }}>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "row",
+          justifyContent: "space-between",
+          color: "white",
+          fontSize: 11,
+          marginBottom: "1ex",
+        }}
+      >
+        <span>{domain.min}</span>
+        <span>{domain.max}</span>
+      </div>
+      <div
+        style={{
+          height: "1ex",
+          width: "30vw",
+          minWidth: 200,
+          maxWidth: 500,
+          display: "flex",
+        }}
+      >
+        {colorSteps.map((rgba, i) => (
+          <div
+            key={`color-bar-${i}`}
+            style={{
+              width: `${100 / numSteps}%`,
+              backgroundColor: rgba,
+              height: "100%",
+            }}
+          ></div>
+        ))}
       </div>
     </div>
   );

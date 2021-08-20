@@ -1,0 +1,4 @@
+.transportControl:hover {
+  opacity: 1 !important;
+  transition: opacity 100ms !important;
+}
