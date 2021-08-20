@@ -381,6 +381,7 @@ const LegendColorBar: React.FC<LegendColorBarProps> = ({
         }}
       >
         <span>{domain.min}</span>
+        <span>{(domain.min + domain.max) / 2}</span>
         <span>{domain.max}</span>
       </div>
       <div
