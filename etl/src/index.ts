@@ -45,6 +45,13 @@ async function downloadCovidActNowTimeseries(): Promise<void> {
   }
 
   try {
+    await fsP.access(DATA_BASE_PATH);
+  } catch (err) {
+    console.log(chalk`{green prereq:} {yellow [note]} creating timeseries cache`);
+    await fsP.mkdir(DATA_BASE_PATH);
+  }
+
+  try {
     await fsP.access(DATA_TIMESERIES_PARTIAL_PATH, constants.F_OK);
     console.log(chalk`{green prereq:} {yellow [note]} deleting previously unfinished download`);
     await fsP.unlink(DATA_TIMESERIES_PARTIAL_PATH);
