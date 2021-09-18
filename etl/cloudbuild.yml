@@ -9,7 +9,7 @@ steps:
       - name: "data"
         path: "/etl-data"
     dir: "etl"
-    args: ["src/index.ts", "build" "--out", "/etl-data"]
+    args: ["src/index.ts", "build", "--out", "/etl-data"]
   - name: "gcr.io/cloud-builders/gsutil"
     entrypoint: gsutil
     volumes:
