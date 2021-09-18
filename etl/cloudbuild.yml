@@ -19,4 +19,4 @@ steps:
       - name: "data"
         path: "/etl-data"
     dir: "etl"
-    args: ["-m", "cp", "-r", "/etl-data", "gs://anirona-data/"]
+    args: ["-m", "cp", "-r", "/etl-data/*", "gs://anirona-data/"]
