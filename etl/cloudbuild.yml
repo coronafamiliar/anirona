@@ -5,6 +5,8 @@ steps:
     args: ["install"]
   - name: "node"
     entrypoint: "./node_modules/.bin/swc-node"
+    env:
+      - "NODE_OPTIONS=--max_old_space_size=4096"
     volumes:
       - name: "data"
         path: "/etl-data"
