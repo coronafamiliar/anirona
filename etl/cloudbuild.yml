@@ -1,16 +1,19 @@
 steps:
   - name: "node"
     entrypoint: "npm"
+    dir: "etl"
     args: ["install"]
   - name: "node"
     entrypoint: "npm"
     volumes:
       - name: "data"
         path: "/etl-data"
+    dir: "etl"
     args: ["run", "start", "--", "--out", "/etl-data"]
   - name: "gcr.io/cloud-builders/gsutil"
     entrypoint: gsutil
     volumes:
       - name: "data"
         path: "/etl-data"
+    dir: "etl"
     args: ["-m", "cp", "-r", "/etl-data", "gs://anirona-data/"]
