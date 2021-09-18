@@ -25,13 +25,13 @@ const DATA_BASE_PATH = path.join(process.cwd(), "..", "data");
 const DATA_TIMESERIES_PATH = path.join(DATA_BASE_PATH, "counties.timeseries.json");
 const DATA_TIMESERIES_PARTIAL_PATH = path.join(DATA_BASE_PATH, "counties.timeseries.json.part");
 const DATA_LAST_FETCHED_PATH = path.join(DATA_BASE_PATH, "lastFetched.txt");
-const DESTINATION_DATA_PATH = path.join(process.cwd(), "..", "web", "public", "data");
+const DEFAULT_DESTINATION_PATH = path.join("..", "web", "public", "data");
 const GEOJSON_BASE_PATH = path.join(process.cwd(), "static", "counties.geojson");
-const buildDataPath = (category: string) => path.join(DESTINATION_DATA_PATH, category);
-const buildDataFilePath = (category: string, metric: string) =>
-  path.join(buildDataPath(category), `${metric}.json.gz`);
-const buildDataFilePartialPath = (category: string, metric: string) =>
-  `${buildDataFilePath(category, metric)}.part`;
+const buildDataPath = (outPath: string, category: string) => path.join(outPath, category);
+const buildDataFilePath = (outPath: string, category: string, metric: string) =>
+  path.join(buildDataPath(outPath, category), `${metric}.json.gz`);
+const buildDataFilePartialPath = (outPath: string, category: string, metric: string) =>
+  `${buildDataFilePath(outPath, category, metric)}.part`;
 
 const COVIDACTNOW_BASE_URL = `https://api.covidactnow.org/v2/`;
 const countyTimeseriesUrl = (apiKey: string) =>
@@ -242,7 +242,14 @@ async function getGeoJSONBase(): Promise<FeatureCollection> {
   return JSON.parse(await fsP.readFile(GEOJSON_BASE_PATH, { encoding: "utf-8" }));
 }
 
-async function build() {
+interface Options {
+  out: string;
+}
+
+async function build(options: Options) {
+  const outPath = path.join(process.cwd(), options.out);
+  console.log(chalk`{blue options:} output path: "${outPath}"`);
+
   const geojsonBase = await getGeoJSONBase();
   const timeseries = await getTimeseriesFile();
   for (const category in TIMESERIES_PATHS) {
@@ -255,13 +262,13 @@ async function build() {
       );
 
       try {
-        await fsP.access(buildDataPath(category));
+        await fsP.access(buildDataPath(outPath, category));
       } catch (err) {
-        await fsP.mkdir(buildDataPath(category));
+        await fsP.mkdir(buildDataPath(outPath, category));
       }
 
-      const filePath = buildDataFilePath(category, metric);
-      const partialFilePath = buildDataFilePartialPath(category, metric);
+      const filePath = buildDataFilePath(outPath, category, metric);
+      const partialFilePath = buildDataFilePartialPath(outPath, category, metric);
 
       try {
         await fsP.access(filePath);
@@ -293,7 +300,8 @@ async function build() {
 const program = new Command();
 program.version("0.0.1");
 program
-  .command("build")
+  .command("build", { isDefault: true })
+  .option("-o, --out [path]", "destination path for geojson files", DEFAULT_DESTINATION_PATH)
   .description("download and assemble GeoJSON files for all CovidActNow metrics")
   .action(build);
 
