@@ -4,12 +4,12 @@ steps:
     dir: "etl"
     args: ["install"]
   - name: "node"
-    entrypoint: "npm"
+    entrypoint: "./node_modules/.bin/swc-node"
     volumes:
       - name: "data"
         path: "/etl-data"
     dir: "etl"
-    args: ["run", "start", "--", "--out", "/etl-data"]
+    args: ["src/index.ts", "build" "--out", "/etl-data"]
   - name: "gcr.io/cloud-builders/gsutil"
     entrypoint: gsutil
     volumes:
