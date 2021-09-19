@@ -22,15 +22,20 @@ this is a Next.js app that displays an animated map of covid timeseries data. it
 
 ## how do i use it
 
-i don't have this hosted anywhere yet (i'm figuring out some infrastructure stuff on my end), but you can run it locally!
+visit the hosted version here: https://anirona-wv5rtswotq-uw.a.run.app/
+
+to run it locally:
 
 - clone the repo
-- `cd anirona/etl`
-- `npm install`
-- `npm run start -- build` to download the data and parse it
 - `cd ../web`
 - `npm run dev`
 - visit `localhost:3000` in your browser
+
+to run the ETL pipeline locally
+
+- `cd anirona/etl`
+- `npm install`
+- `npm run start -- build`
 
 ## contributions
 
