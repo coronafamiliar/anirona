@@ -20,3 +20,10 @@ steps:
         path: "/etl-data"
     dir: "etl"
     args: ["-m", "cp", "-r", "/etl-data/*", "gs://anirona-data/"]
+  - name: "gcr.io/cloud-builders/gsutil"
+    entrypoint: gsutil
+    volumes:
+      - name: "data"
+        path: "/etl-data"
+    dir: "etl"
+    args: ["-m", "setmeta", "-h", "Content-Encoding:gzip", "gs://anirona-data/**/*.json.gz"]
