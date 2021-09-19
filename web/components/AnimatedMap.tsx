@@ -199,7 +199,7 @@ const AnimatedMap: React.FC<AnimatedMapProps> = ({ metric }) => {
   const layers = [
     new GeoJsonLayer({
       id: "choropleth",
-      data: `/api/timeseries/${category}.${dataMetric}`,
+      data: `https://storage.googleapis.com/anirona-data/${category}/${dataMetric}.json.gz`,
       filled: true,
       parameters: {
         depthTest: false,
