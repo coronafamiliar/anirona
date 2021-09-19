@@ -254,7 +254,7 @@ interface Options {
 }
 
 async function build(options: Options) {
-  const outPath = path.join(process.cwd(), options.out);
+  const outPath = path.resolve(process.cwd(), options.out);
   console.log(chalk`{blue options:} output path: "${outPath}"`);
 
   const geojsonBase = await getGeoJSONBase();
