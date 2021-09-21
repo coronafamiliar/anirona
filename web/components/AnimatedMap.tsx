@@ -6,11 +6,11 @@ import { add, differenceInDays, formatISO, startOfToday } from "date-fns";
 import { GeoJsonLayer, RGBAColor } from "deck.gl";
 import type { Feature } from "geojson";
 import router from "next/router";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { IoIosPause, IoIosPlay } from "react-icons/io";
 import { IoChevronDown, IoChevronUp } from "react-icons/io5";
 import { StaticMap } from "react-map-gl";
-import { useRafState } from "react-use";
+import { useRafLoop } from "react-use";
 import styles from "styles/AnimatedMap.module.css";
 import {
   SCALE_RYB,
@@ -128,14 +128,17 @@ export const CONFIGS: { [metric: string]: MetricConfig } = {
   },
 };
 
-const START_OF_ANIMATION = new Date("2020-01-01");
-const START_OF_DATA = new Date("2020-01-20");
+const DEFAULT_DATE_ANIMATION_START = new Date("2020-01-01");
+const DATE_DATA_AVAILABLE = new Date("2020-01-20");
 const DATA_ANIMATION_DATE_OFFSET = differenceInDays(
-  START_OF_DATA,
-  START_OF_ANIMATION
+  DATE_DATA_AVAILABLE,
+  DEFAULT_DATE_ANIMATION_START
 );
-const DAYS_SINCE_START = differenceInDays(START_OF_ANIMATION, startOfToday());
-const speedModifier = 6;
+const DAYS_SINCE_START = differenceInDays(
+  DEFAULT_DATE_ANIMATION_START,
+  startOfToday()
+);
+const DEFAULT_DAYS_PER_SECOND = 10;
 
 /** In case there isn't data available for the current date, we'll fade out the data */
 interface PriorData {
@@ -155,31 +158,59 @@ let priorData: PriorData | null = null;
 
 const AnimatedMap: React.FC<AnimatedMapProps> = ({ metric }) => {
   const [playing, setPlaying] = useState(false);
-  const [animationCounter, setAnimationCounter] = useRafState(0);
-
-  // TODO this won't transition well as a speed transport control since
-  // changing the speed modifier will alter the current date as a function of
-  // the timestep. Need to rethink how to increment date from timestep
-  const timestep = animationCounter % (DAYS_SINCE_START * speedModifier);
+  const [tick, setTick] = useState(0);
+  const [animationStartDate, setAnimationStartDate] = useState<Date>(
+    DEFAULT_DATE_ANIMATION_START
+  );
+  const [animationEndDate, setAnimationEndDate] = useState<Date>(
+    startOfToday()
+  );
+  const [dayCount, setDayCount] = useState(0);
+  const [daysPerSecond, setDaysPerSecond] = useState(DEFAULT_DAYS_PER_SECOND);
+  const msPerDay = Math.ceil(1000 / daysPerSecond);
+  const [previousFrameTs, setPreviousFrameTs] = useState(performance.now());
+  const animationDateOffset = useMemo(
+    () => differenceInDays(DATE_DATA_AVAILABLE, animationStartDate),
+    [DATE_DATA_AVAILABLE, animationStartDate]
+  );
 
   const wholeMetric = metric[0];
   const splitMetric = wholeMetric.split(".");
-
   const config = CONFIGS[wholeMetric];
-
   const [category, dataMetric] = splitMetric;
-  const dayCount = timestep / speedModifier;
   const dataDayCount = dayCount - DATA_ANIMATION_DATE_OFFSET;
   const currentAnimationDate = formatISO(
-    add(START_OF_ANIMATION, { days: dayCount }),
+    add(DEFAULT_DATE_ANIMATION_START, { days: dayCount }),
     {
       representation: "date",
     }
   );
 
-  if (playing) {
-    setAnimationCounter(animationCounter + 1);
-  }
+  const tryAdvanceFrame = (currentTs: number) => {
+    // Compare frame timings to determine if we should increment the date
+    // (attempt to maintain consistent animation performance across devices)
+    const animationTimespan = currentTs - previousFrameTs;
+    if (animationTimespan > msPerDay) {
+      setDayCount(dayCount + 1);
+      setPreviousFrameTs(currentTs);
+    }
+  };
+
+  const [stopLoop, startLoop, getLoopStatus] = useRafLoop((time) => {
+    const nextTick = tick + 1;
+    setTick(nextTick);
+    tryAdvanceFrame(time);
+  }, false);
+
+  const togglePlayPause = () => {
+    const nextState = !playing;
+    setPlaying(nextState);
+    if (nextState) {
+      startLoop();
+    } else {
+      stopLoop();
+    }
+  };
 
   if (priorData != null && priorData.mostRecentDayCount > dayCount) {
     priorData = null;
@@ -206,8 +237,7 @@ const AnimatedMap: React.FC<AnimatedMapProps> = ({ metric }) => {
       const priorDataForFips = priorData?.data[fips];
 
       if (fips != null && priorDataForFips != null) {
-        // Data exists at prior dates, tastefully fade it out
-
+        // Data exists at prior dates, use that data
         const priorValue: number = series[priorDataForFips.date];
         const scaledValue = 1 - (priorValue - min) / max;
         return colorScale(Math.min(1, scaledValue)).rgb();
@@ -351,7 +381,7 @@ const AnimatedMap: React.FC<AnimatedMapProps> = ({ metric }) => {
             transition: "opacity 1s",
             opacity: playing ? 0.1 : 1,
           }}
-          onClick={() => setPlaying(!playing)}
+          onClick={() => togglePlayPause()}
         >
           {playing ? <IoIosPause /> : <IoIosPlay />}
         </div>
