@@ -4,8 +4,6 @@ This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next
 
 ## Getting Started
 
-**⚠️ note:** run the etl project before you start the web app to build the correct datasets for the webapp. This isn't automated yet :(
-
 Run the development server:
 
 ```bash
@@ -16,4 +14,4 @@ yarn dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-The `pages/api` directory is mapped to `/api/*`. Files in this directory are treated as [API routes](https://nextjs.org/docs/api-routes/introduction) instead of React pages.
+By default, the web app will pull its data from a Google Storage bucket. This isn't easily customizable yet but you can edit the path in `src/components/AnimatedMap.tsx`
