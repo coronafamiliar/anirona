@@ -395,7 +395,6 @@ const AnimatedMap: React.FC<AnimatedMapProps> = ({ metric }) => {
             marginBottom: "10px",
             cursor: "pointer",
           }}
-          onClick={() => setPlaying(!playing)}
         >
           {currentAnimationDate}
         </div>
