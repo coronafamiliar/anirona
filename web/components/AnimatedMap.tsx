@@ -12,6 +12,12 @@ import { IoChevronDown, IoChevronUp } from "react-icons/io5";
 import { StaticMap } from "react-map-gl";
 import { useRafState } from "react-use";
 import styles from "styles/AnimatedMap.module.css";
+import {
+  SCALE_RYB,
+  SCALE_RYB_INVERT,
+  SCALE_SPECTRAL_INVERT,
+  SCALE_TURBO_INVERT,
+} from "utils/colors";
 import { LegendColorBar } from "./LegendColorBarProps";
 
 interface AnimatedMapProps {
@@ -26,55 +32,100 @@ const INITIAL_VIEW_STATE = {
   maxZoom: 8,
 };
 
-export const DOMAINS: { [metric: string]: { min: number; max: number } } = {
+interface MetricConfig {
+  min: number;
+  max: number;
+  description: string;
+  colorScale: chroma.Scale;
+}
+
+export const CONFIGS: { [metric: string]: MetricConfig } = {
   "actuals.cases": {
     min: 0,
     max: 1000,
+    description: "New cases",
+    colorScale: SCALE_TURBO_INVERT,
   },
   "actuals.newCases": {
     min: 0,
     max: 1000,
+    description: "Cases per 100k, 7 day average",
+    colorScale: SCALE_TURBO_INVERT,
+  },
+  "actuals.newDeaths": {
+    min: 0,
+    max: 50,
+    description: "New deaths",
+    colorScale: SCALE_TURBO_INVERT,
+  },
+  "metrics.contactTracerCapacityRatio": {
+    min: 0,
+    max: 1,
+    description: "Hired tracers to tracers needed, 7 day average",
+    colorScale: SCALE_RYB,
   },
   "metrics.caseDensity": {
     min: 0,
-    max: 100,
+    max: 1000,
+    description: "Cases per 100k people, 7 day average",
+    colorScale: SCALE_TURBO_INVERT,
   },
   "metrics.infectionRate": {
     min: 0,
-    max: 2,
+    max: 5,
+    description: "Estimated Rt (effective transmission rate)",
+    colorScale: SCALE_TURBO_INVERT,
   },
   "metrics.infectionRateCI90": {
     min: 0,
-    max: 2,
+    max: 5,
+    description: "Estimated Rt (90th percentile confidence interval)",
+    colorScale: SCALE_TURBO_INVERT,
   },
   "riskLevels.overall": {
     min: 0,
     max: 5,
+    description: "Overall risk level",
+    colorScale: SCALE_SPECTRAL_INVERT,
   },
   "riskLevels.caseDensity": {
     min: 0,
     max: 5,
+    description: "Case density risk level",
+    colorScale: SCALE_SPECTRAL_INVERT,
   },
-};
-
-const DESCRIPTIONS: { [metric: string]: string } = {
-  "actuals.newCases": "New cases",
-  "actuals.newDeaths": "New deaths",
-  "metrics.caseDensity": "Cases per 100k, 7 day average",
-  "metrics.contactTracerCapacityRatio":
-    "Hired tracers to tracers needed, 7 day average",
-  "metrics.icuCapacityRatio": "% of ICU beds in use, 7 day average",
-  "metrics.icuHeadroomRatio": "% of ICU beds available, 7 day average",
-  "metrics.infectionRate": "Estimated Rt (effective transmission rate)",
-  "metrics.infectionRateCI90":
-    "Estimated Rt (90th percentile confidence interval)",
-  "metrics.testPositivityRatio": "% of positive tests, 7 day average",
-  "metrics.vaccinationsCompletedRatio":
-    "% of population fully vaccinated (completed all doses to date)",
-  "metrics.vaccinationsInitiatedRatio":
-    "% of population partially vaccinated (one dose, but not complete)",
-  "riskLevels.caseDensity": "Case density risk level",
-  "riskLevels.overall": "Overall risk level",
+  "metrics.icuCapacityRatio": {
+    min: 0,
+    max: 1,
+    description: "% of ICU beds in use, 7 day average",
+    colorScale: SCALE_RYB_INVERT,
+  },
+  "metrics.icuHeadroomRatio": {
+    min: 0,
+    max: 1,
+    description: "% of ICU beds available, 7 day average",
+    colorScale: SCALE_RYB_INVERT,
+  },
+  "metrics.testPositivityRatio": {
+    min: 0,
+    max: 1,
+    description: "% of positive tests, 7 day average",
+    colorScale: SCALE_RYB_INVERT,
+  },
+  "metrics.vaccinationsCompletedRatio": {
+    min: 0,
+    max: 1,
+    description:
+      "% of population fully vaccinated (completed all doses to date)",
+    colorScale: SCALE_RYB_INVERT,
+  },
+  "metrics.vaccinationsInitiatedRatio": {
+    min: 0,
+    max: 1,
+    description:
+      "% of population partially vaccinated (one dose, but not complete)",
+    colorScale: SCALE_RYB_INVERT,
+  },
 };
 
 const START_OF_ANIMATION = new Date("2020-01-01");
@@ -85,8 +136,6 @@ const DATA_ANIMATION_DATE_OFFSET = differenceInDays(
 );
 const DAYS_SINCE_START = differenceInDays(START_OF_ANIMATION, startOfToday());
 const speedModifier = 6;
-
-const COLOR_SCALE = chroma.scale("RdYlBu");
 
 /** In case there isn't data available for the current date, we'll fade out the data */
 interface PriorData {
@@ -116,7 +165,7 @@ const AnimatedMap: React.FC<AnimatedMapProps> = ({ metric }) => {
   const wholeMetric = metric[0];
   const splitMetric = wholeMetric.split(".");
 
-  const domain = DOMAINS[wholeMetric] || { max: 1, min: 0 };
+  const config = CONFIGS[wholeMetric];
 
   const [category, dataMetric] = splitMetric;
   const dayCount = timestep / speedModifier;
@@ -148,8 +197,7 @@ const AnimatedMap: React.FC<AnimatedMapProps> = ({ metric }) => {
       return [0, 0, 0, 0];
     }
 
-    const max = domain.max;
-    const min = domain.min;
+    const { max, min, colorScale } = config;
     const valueAtTimestep = series[currentAnimationDate];
     const fips = f.properties.STATE + f.properties.COUNTY;
 
@@ -162,7 +210,7 @@ const AnimatedMap: React.FC<AnimatedMapProps> = ({ metric }) => {
 
         const priorValue: number = series[priorDataForFips.date];
         const scaledValue = 1 - (priorValue - min) / max;
-        return COLOR_SCALE(Math.min(1, scaledValue)).rgb();
+        return colorScale(Math.min(1, scaledValue)).rgb();
       } else {
         return [33, 33, 33, 0.2];
       }
@@ -182,15 +230,11 @@ const AnimatedMap: React.FC<AnimatedMapProps> = ({ metric }) => {
         value: valueAtTimestep,
       };
 
-      return COLOR_SCALE(scaledValue).rgb();
+      return colorScale(scaledValue).rgb();
     }
   };
 
-  if (
-    metric.length > 1 ||
-    splitMetric.length != 2 ||
-    !DESCRIPTIONS[wholeMetric]
-  ) {
+  if (metric.length > 1 || splitMetric.length != 2 || !CONFIGS[wholeMetric]) {
     // Invalid, return to the homepage
     router.replace("/");
     return null;
@@ -257,7 +301,7 @@ const AnimatedMap: React.FC<AnimatedMapProps> = ({ metric }) => {
                   cursor: "pointer",
                 }}
               >
-                {DESCRIPTIONS[wholeMetric]}
+                {CONFIGS[wholeMetric].description}
                 <span aria-hidden="true" style={{ marginLeft: "1em" }}>
                   {isExpanded ? <IoChevronUp /> : <IoChevronDown />}
                 </span>
@@ -274,9 +318,9 @@ const AnimatedMap: React.FC<AnimatedMapProps> = ({ metric }) => {
                   backdropFilter: "blur(50px)",
                 }}
               >
-                {Object.keys(DESCRIPTIONS).map((key) => (
+                {Object.keys(CONFIGS).map((key) => (
                   <MenuItem onSelect={() => router.push(`/${key}`)} key={key}>
-                    {DESCRIPTIONS[key]}
+                    {CONFIGS[key].description}
                   </MenuItem>
                 ))}
               </MenuList>
@@ -348,7 +392,7 @@ const AnimatedMap: React.FC<AnimatedMapProps> = ({ metric }) => {
             </span>
           )}
         </div>
-        <LegendColorBar metric={wholeMetric} colorScale={COLOR_SCALE} />
+        <LegendColorBar metric={wholeMetric} colorScale={config.colorScale} />
       </div>
     </div>
   );
