@@ -17,7 +17,7 @@ const Home: NextPage = () => {
   return (
     <div className={styles.container}>
       <Head>
-        <title>aniRona: animated coronavirus maps</title>
+        <title>anirona: animated coronavirus maps</title>
         <meta name="description" content="Animated coronavirus maps" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
