@@ -274,3 +274,12 @@ export const SCALE_RYB_INVERT = chroma.scale("RdYlBu").domain([1, 0]);
 export const SCALE_RYB = chroma.scale("RdYlBu");
 export const SCALE_SPECTRAL_INVERT = chroma.scale("Spectral").domain([1, 0]);
 export const SCALE_SPECTRAL = chroma.scale("Spectral");
+export const SCALE_RISK = chroma
+  .scale([
+    chroma("#00d474"),
+    chroma("#ffc900"),
+    chroma("#ff9600"),
+    chroma("#d9002c"),
+    chroma("#790019"),
+  ])
+  .domain([1, 0]);

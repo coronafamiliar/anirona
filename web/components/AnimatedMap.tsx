@@ -13,7 +13,12 @@ import { IoChevronDown, IoChevronUp } from "react-icons/io5";
 import { StaticMap } from "react-map-gl";
 import { useRafLoop } from "react-use";
 import styles from "styles/AnimatedMap.module.css";
-import { SCALE_RYB, SCALE_RYB_INVERT, SCALE_TURBO_INVERT } from "utils/colors";
+import {
+  SCALE_RISK,
+  SCALE_RYB,
+  SCALE_RYB_INVERT,
+  SCALE_TURBO_INVERT,
+} from "utils/colors";
 import { LegendColorBar } from "./LegendColorBarProps";
 
 interface AnimatedMapProps {
@@ -82,13 +87,13 @@ export const CONFIGS: { [metric: string]: MetricConfig } = {
     min: 0,
     max: 5,
     description: "Overall risk level",
-    colorScale: SCALE_RYB,
+    colorScale: SCALE_RISK,
   },
   "riskLevels.caseDensity": {
     min: 0,
     max: 5,
     description: "Case density risk level",
-    colorScale: SCALE_RYB,
+    colorScale: SCALE_RISK,
   },
   "metrics.icuCapacityRatio": {
     min: 0,
