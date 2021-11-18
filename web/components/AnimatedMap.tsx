@@ -40,16 +40,16 @@ interface MetricConfig {
 }
 
 export const CONFIGS: { [metric: string]: MetricConfig } = {
-  "actuals.cases": {
-    min: 0,
-    max: 1000,
-    description: "New cases",
-    colorScale: SCALE_TURBO_INVERT,
-  },
+//   "actuals.cases": {
+//     min: 0,
+//     max: 1000,
+//     description: "(WIP) ",
+//     colorScale: SCALE_TURBO_INVERT,
+//   },
   "actuals.newCases": {
     min: 0,
     max: 1000,
-    description: "Cases per 100k, 7 day average",
+    description: "New cases",
     colorScale: SCALE_TURBO_INVERT,
   },
   "actuals.newDeaths": {
@@ -66,7 +66,7 @@ export const CONFIGS: { [metric: string]: MetricConfig } = {
   },
   "metrics.caseDensity": {
     min: 0,
-    max: 1000,
+    max: 150,
     description: "Cases per 100k people, 7 day average",
     colorScale: SCALE_TURBO_INVERT,
   },
@@ -140,7 +140,6 @@ const DAYS_SINCE_START = differenceInDays(
 );
 const DEFAULT_DAYS_PER_SECOND = 10;
 
-/** In case there isn't data available for the current date, we'll fade out the data */
 interface PriorData {
   mostRecentDayCount: number;
   data: {
