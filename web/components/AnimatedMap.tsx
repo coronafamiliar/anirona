@@ -6,7 +6,7 @@ import { add, differenceInDays, formatISO, startOfToday } from "date-fns";
 import { GeoJsonLayer, RGBAColor } from "deck.gl";
 import type { Feature } from "geojson";
 import router from "next/router";
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { GiBurningDot } from "react-icons/gi";
 import { IoIosFastforward, IoIosPause, IoIosPlay } from "react-icons/io";
 import { IoChevronDown, IoChevronUp } from "react-icons/io5";
@@ -257,6 +257,16 @@ const AnimatedMap: React.FC<AnimatedMapProps> = ({ metric }) => {
     }
   }, [daysPerSecond, playing, setPause, startLoop]);
 
+  const restartAnimation = useCallback(() => {
+    setDayCount(0);
+  }, [setDayCount]);
+
+  useEffect(() => {
+    if (isEndOfTime) {
+      setPause();
+    }
+  }, [isEndOfTime, setPause]);
+
   if (priorData != null && priorData.mostRecentDayCount > dayCount) {
     priorData = null;
   }
@@ -428,6 +438,8 @@ const AnimatedMap: React.FC<AnimatedMapProps> = ({ metric }) => {
               transition: "opacity 1s",
               opacity: playing ? 0.5 : 1,
             }}
+            role="button"
+            title="Pause"
             onClick={() => setPause()}
           >
             <IoIosPause />
@@ -445,7 +457,10 @@ const AnimatedMap: React.FC<AnimatedMapProps> = ({ metric }) => {
                 playing && daysPerSecond === DAYS_PER_SECOND_OPTIONS.slow
                   ? 1
                   : 0.2,
+              pointerEvents: isEndOfTime ? "none" : "inherit",
             }}
+            role="button"
+            title="10 days per second"
             onClick={() => togglePlay()}
           >
             <IoIosPlay />
@@ -463,7 +478,10 @@ const AnimatedMap: React.FC<AnimatedMapProps> = ({ metric }) => {
                 playing && daysPerSecond === DAYS_PER_SECOND_OPTIONS.medium
                   ? 1
                   : 0.2,
+              pointerEvents: isEndOfTime ? "none" : "inherit",
             }}
+            role="button"
+            title="30 days per second"
             onClick={() => toggleMediumSpeed()}
           >
             <IoIosFastforward />
@@ -480,7 +498,10 @@ const AnimatedMap: React.FC<AnimatedMapProps> = ({ metric }) => {
                 playing && daysPerSecond === DAYS_PER_SECOND_OPTIONS.fast
                   ? 1
                   : 0.2,
+              pointerEvents: isEndOfTime ? "none" : "inherit",
             }}
+            role="button"
+            title="60 days per second"
             onClick={() => toggleFastSpeed()}
           >
             <GiBurningDot />
@@ -509,7 +530,14 @@ const AnimatedMap: React.FC<AnimatedMapProps> = ({ metric }) => {
             marginBottom: "2em",
           }}
         >
-          {dataDayCount >= 0 && dataDayCount <= 365 ? (
+          {isEndOfTime ? (
+            <span>
+              The <em>End of Times</em> (today){" "}
+              <a href="#" onClick={restartAnimation}>
+                (restart?)
+              </a>
+            </span>
+          ) : dataDayCount >= 0 && dataDayCount <= 365 ? (
             <span>Day {Math.floor(dataDayCount)}</span>
           ) : dataDayCount > 365 ? (
             <span>
