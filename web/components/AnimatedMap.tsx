@@ -165,7 +165,7 @@ const AnimatedMap: React.FC<AnimatedMapProps> = ({ metric }) => {
   const [previousFrameTs, setPreviousFrameTs] = useState(performance.now());
   const animationDateOffset = useMemo(
     () => differenceInDays(DATE_DATA_AVAILABLE, animationStartDate),
-    [DATE_DATA_AVAILABLE, animationStartDate]
+    [animationStartDate]
   );
 
   const wholeMetric = metric[0];
