@@ -167,34 +167,53 @@ const AnimatedMap: React.FC<AnimatedMapProps> = ({ metric }) => {
   );
   const [dayCount, setDayCount] = useState(0);
   const [daysPerSecond, setDaysPerSecond] = useState(DEFAULT_DAYS_PER_SECOND);
-  const msPerDay = Math.ceil(1000 / daysPerSecond);
   const [previousFrameTs, setPreviousFrameTs] = useState(performance.now());
-  const animationDateOffset = useMemo(
-    () => differenceInDays(DATE_DATA_AVAILABLE, animationStartDate),
-    [animationStartDate]
+  const msPerDay = useMemo(
+    () => Math.ceil(1000 / daysPerSecond),
+    [daysPerSecond]
   );
-
-  const wholeMetric = metric[0];
-  const splitMetric = wholeMetric.split(".");
-  const config = CONFIGS[wholeMetric];
-  const [category, dataMetric] = splitMetric;
-  const dataDayCount = dayCount - DATA_ANIMATION_DATE_OFFSET;
-  const currentAnimationDate = formatISO(
-    add(DEFAULT_DATE_ANIMATION_START, { days: dayCount }),
-    {
+  const { currentAnimationDateStr, currentAnimationDate } = useMemo(() => {
+    const currentAnimationDate = add(DEFAULT_DATE_ANIMATION_START, {
+      days: dayCount,
+    });
+    const currentAnimationDateStr = formatISO(currentAnimationDate, {
       representation: "date",
-    }
-  );
+    });
 
-  const tryAdvanceFrame = (currentTs: number) => {
-    // Compare frame timings to determine if we should increment the date
-    // (attempt to maintain consistent animation performance across devices)
-    const animationTimespan = currentTs - previousFrameTs;
-    if (animationTimespan > msPerDay) {
-      setDayCount(dayCount + 1);
-      setPreviousFrameTs(currentTs);
-    }
-  };
+    return {
+      currentAnimationDate,
+      currentAnimationDateStr,
+    };
+  }, [dayCount]);
+  const { wholeMetric, splitMetric, config, category, dataMetric } =
+    useMemo(() => {
+      const wholeMetric = metric[0];
+      const splitMetric = wholeMetric.split(".");
+      const config = CONFIGS[wholeMetric];
+      const [category, dataMetric] = splitMetric;
+      return {
+        wholeMetric,
+        splitMetric,
+        config,
+        category,
+        dataMetric,
+      };
+    }, [metric]);
+  const dataDayCount = dayCount - DATA_ANIMATION_DATE_OFFSET;
+  const isEndOfTime = currentAnimationDate >= animationEndDate;
+
+  const tryAdvanceFrame = useCallback(
+    (currentTs: number) => {
+      // Compare frame timings to determine if we should increment the date
+      // (attempt to maintain consistent animation performance across devices)
+      const animationTimespan = currentTs - previousFrameTs;
+      if (animationTimespan > msPerDay) {
+        setDayCount(dayCount + 1);
+        setPreviousFrameTs(currentTs);
+      }
+    },
+    [dayCount, msPerDay, previousFrameTs]
+  );
 
   const [stopLoop, startLoop, getLoopStatus] = useRafLoop((time) => {
     const nextTick = tick + 1;
@@ -255,7 +274,7 @@ const AnimatedMap: React.FC<AnimatedMapProps> = ({ metric }) => {
     }
 
     const { max, min, colorScale } = config;
-    const valueAtTimestep = series[currentAnimationDate];
+    const valueAtTimestep = series[currentAnimationDateStr];
     const fips = f.properties.STATE + f.properties.COUNTY;
 
     if (valueAtTimestep == null) {
@@ -281,7 +300,7 @@ const AnimatedMap: React.FC<AnimatedMapProps> = ({ metric }) => {
       };
       priorData.mostRecentDayCount = dayCount;
       priorData.data[fips] = {
-        date: currentAnimationDate,
+        date: currentAnimationDateStr,
         dayCount: dayCount,
         value: valueAtTimestep,
       };
@@ -307,7 +326,7 @@ const AnimatedMap: React.FC<AnimatedMapProps> = ({ metric }) => {
       getLineColor: [0, 0, 0, 0.1],
       getFillColor,
       updateTriggers: {
-        getFillColor: currentAnimationDate,
+        getFillColor: currentAnimationDateStr,
       },
     }),
   ];
@@ -478,7 +497,7 @@ const AnimatedMap: React.FC<AnimatedMapProps> = ({ metric }) => {
             cursor: "pointer",
           }}
         >
-          {currentAnimationDate}
+          {currentAnimationDateStr}
         </div>
 
         <div
