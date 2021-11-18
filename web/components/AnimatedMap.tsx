@@ -40,12 +40,12 @@ interface MetricConfig {
 }
 
 export const CONFIGS: { [metric: string]: MetricConfig } = {
-//   "actuals.cases": {
-//     min: 0,
-//     max: 1000,
-//     description: "(WIP) ",
-//     colorScale: SCALE_TURBO_INVERT,
-//   },
+  "actuals.cases": {
+    min: 0,
+    max: 1000,
+    description: "(WIP) Total cases",
+    colorScale: SCALE_TURBO_INVERT,
+  },
   "actuals.newCases": {
     min: 0,
     max: 1000,
