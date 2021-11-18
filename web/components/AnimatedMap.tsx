@@ -136,7 +136,7 @@ const DAYS_SINCE_START = differenceInDays(
 );
 const DEFAULT_DAYS_PER_SECOND = 10;
 const DAYS_PER_SECOND_OPTIONS = {
-  slow: 10,
+  slow: 12,
   medium: 30,
   fast: 60,
 };
