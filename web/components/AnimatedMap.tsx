@@ -128,8 +128,8 @@ export const CONFIGS: { [metric: string]: MetricConfig } = {
   },
 };
 
-const DEFAULT_DATE_ANIMATION_START = new Date("2020-01-01");
-const DATE_DATA_AVAILABLE = new Date("2020-01-20");
+const DEFAULT_DATE_ANIMATION_START = new Date("2020-03-01");
+const DATE_DATA_AVAILABLE = new Date("2020-03-15");
 const DATA_ANIMATION_DATE_OFFSET = differenceInDays(
   DATE_DATA_AVAILABLE,
   DEFAULT_DATE_ANIMATION_START
