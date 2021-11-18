@@ -282,4 +282,5 @@ export const SCALE_RISK = chroma
     chroma("#d9002c"),
     chroma("#790019"),
   ])
+  .mode("lab")
   .domain([1, 0]);
