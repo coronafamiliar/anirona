@@ -207,35 +207,36 @@ const AnimatedMap: React.FC<AnimatedMapProps> = ({ metric }) => {
     stopLoop();
   }, [setPlaying, stopLoop]);
 
+  // TODO tidy this up
   const togglePlay = useCallback(() => {
-    if (playing) {
+    if (playing && daysPerSecond === DAYS_PER_SECOND_OPTIONS.slow) {
       setPause();
     } else {
       setDaysPerSecond(DAYS_PER_SECOND_OPTIONS.slow);
       setPlaying(true);
       startLoop();
     }
-  }, [playing, setPause, setPlaying, startLoop]);
+  }, [daysPerSecond, playing, setPause, setPlaying, startLoop]);
 
   const toggleMediumSpeed = useCallback(() => {
-    if (playing) {
+    if (playing && daysPerSecond === DAYS_PER_SECOND_OPTIONS.medium) {
       setPause();
     } else {
       setDaysPerSecond(DAYS_PER_SECOND_OPTIONS.medium);
       setPlaying(true);
       startLoop();
     }
-  }, [playing, setPause, startLoop]);
+  }, [daysPerSecond, playing, setPause, startLoop]);
 
   const toggleFastSpeed = useCallback(() => {
-    if (playing) {
+    if (playing && daysPerSecond === DAYS_PER_SECOND_OPTIONS.fast) {
       setPause();
     } else {
       setDaysPerSecond(DAYS_PER_SECOND_OPTIONS.fast);
       setPlaying(true);
       startLoop();
     }
-  }, [playing, setPause, startLoop]);
+  }, [daysPerSecond, playing, setPause, startLoop]);
 
   if (priorData != null && priorData.mostRecentDayCount > dayCount) {
     priorData = null;
