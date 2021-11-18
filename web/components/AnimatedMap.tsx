@@ -6,8 +6,9 @@ import { add, differenceInDays, formatISO, startOfToday } from "date-fns";
 import { GeoJsonLayer, RGBAColor } from "deck.gl";
 import type { Feature } from "geojson";
 import router from "next/router";
-import React, { useMemo, useState } from "react";
-import { IoIosPause, IoIosPlay } from "react-icons/io";
+import React, { useCallback, useMemo, useState } from "react";
+import { GiBurningDot } from "react-icons/gi";
+import { IoIosFastforward, IoIosPause, IoIosPlay } from "react-icons/io";
 import { IoChevronDown, IoChevronUp } from "react-icons/io5";
 import { StaticMap } from "react-map-gl";
 import { useRafLoop } from "react-use";
@@ -134,6 +135,11 @@ const DAYS_SINCE_START = differenceInDays(
   startOfToday()
 );
 const DEFAULT_DAYS_PER_SECOND = 10;
+const DAYS_PER_SECOND_OPTIONS = {
+  slow: 10,
+  medium: 30,
+  fast: 60,
+};
 
 interface PriorData {
   mostRecentDayCount: number;
@@ -196,15 +202,40 @@ const AnimatedMap: React.FC<AnimatedMapProps> = ({ metric }) => {
     tryAdvanceFrame(time);
   }, false);
 
-  const togglePlayPause = () => {
-    const nextState = !playing;
-    setPlaying(nextState);
-    if (nextState) {
-      startLoop();
+  const setPause = useCallback(() => {
+    setPlaying(false);
+    stopLoop();
+  }, [setPlaying, stopLoop]);
+
+  const togglePlay = useCallback(() => {
+    if (playing) {
+      setPause();
     } else {
-      stopLoop();
+      setDaysPerSecond(DAYS_PER_SECOND_OPTIONS.slow);
+      setPlaying(true);
+      startLoop();
     }
-  };
+  }, [playing, setPause, setPlaying, startLoop]);
+
+  const toggleMediumSpeed = useCallback(() => {
+    if (playing) {
+      setPause();
+    } else {
+      setDaysPerSecond(DAYS_PER_SECOND_OPTIONS.medium);
+      setPlaying(true);
+      startLoop();
+    }
+  }, [playing, setPause, startLoop]);
+
+  const toggleFastSpeed = useCallback(() => {
+    if (playing) {
+      setPause();
+    } else {
+      setDaysPerSecond(DAYS_PER_SECOND_OPTIONS.fast);
+      setPlaying(true);
+      startLoop();
+    }
+  }, [playing, setPause, startLoop]);
 
   if (priorData != null && priorData.mostRecentDayCount > dayCount) {
     priorData = null;
@@ -365,19 +396,75 @@ const AnimatedMap: React.FC<AnimatedMapProps> = ({ metric }) => {
           zIndex: 1,
         }}
       >
-        <div
-          className={styles.transportControl}
-          style={{
-            fontSize: 48,
-            color: "white",
-            marginBottom: "10px",
-            cursor: "pointer",
-            transition: "opacity 1s",
-            opacity: playing ? 0.1 : 1,
-          }}
-          onClick={() => togglePlayPause()}
-        >
-          {playing ? <IoIosPause /> : <IoIosPlay />}
+        <div style={{ display: "flex", flexDirection: "row" }}>
+          <div
+            className={styles.transportControl}
+            style={{
+              fontSize: 48,
+              color: "white",
+              marginBottom: "10px",
+              marginRight: "10px",
+              cursor: "pointer",
+              transition: "opacity 1s",
+              opacity: playing ? 0.5 : 1,
+            }}
+            onClick={() => setPause()}
+          >
+            <IoIosPause />
+          </div>
+          <div
+            className={styles.transportControl}
+            style={{
+              fontSize: 48,
+              color: "white",
+              marginBottom: "10px",
+              marginRight: "10px",
+              cursor: "pointer",
+              transition: "opacity 1s",
+              opacity:
+                playing && daysPerSecond === DAYS_PER_SECOND_OPTIONS.slow
+                  ? 1
+                  : 0.2,
+            }}
+            onClick={() => togglePlay()}
+          >
+            <IoIosPlay />
+          </div>
+          <div
+            className={styles.transportControl}
+            style={{
+              fontSize: 48,
+              color: "white",
+              marginBottom: "10px",
+              marginRight: "10px",
+              cursor: "pointer",
+              transition: "opacity 1s",
+              opacity:
+                playing && daysPerSecond === DAYS_PER_SECOND_OPTIONS.medium
+                  ? 1
+                  : 0.2,
+            }}
+            onClick={() => toggleMediumSpeed()}
+          >
+            <IoIosFastforward />
+          </div>
+          <div
+            className={styles.transportControl}
+            style={{
+              fontSize: 48,
+              color: "white",
+              marginBottom: "10px",
+              cursor: "pointer",
+              transition: "opacity 1s",
+              opacity:
+                playing && daysPerSecond === DAYS_PER_SECOND_OPTIONS.fast
+                  ? 1
+                  : 0.2,
+            }}
+            onClick={() => toggleFastSpeed()}
+          >
+            <GiBurningDot />
+          </div>
         </div>
         <div
           style={{
